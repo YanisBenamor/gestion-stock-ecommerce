@@ -1,11 +1,10 @@
 <?php
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\CategorieController;
 use App\Http\Controllers\ProduitController;
+// AJOUTE CETTE LIGNE CI-DESSOUS :
+use App\Http\Controllers\MouvementStockController;
 
-// Routes pour les catégories (ex: GET /api/categories)
-Route::apiResource('categories', CategorieController::class);
-
-// Routes pour les produits (ex: GET /api/produits)
 Route::apiResource('produits', ProduitController::class);
+Route::apiResource('mouvements', MouvementStockController::class);
