@@ -41,7 +41,7 @@ services:
       DB_USERNAME: ${DB_USERNAME:-stockflow}
       DB_PASSWORD: ${DB_PASSWORD:-stockflow_pass}
       OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-phi3}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:1b}
       TZ: ${TZ:-Europe/Paris}
     ports:
       - "8000:8000"
@@ -65,6 +65,8 @@ services:
     image: ollama/ollama:latest
     container_name: stockflow-ollama
     restart: unless-stopped
+    environment:
+      OLLAMA_KEEP_ALIVE: "-1"
     ports:
       - "11434:11434"
     volumes:

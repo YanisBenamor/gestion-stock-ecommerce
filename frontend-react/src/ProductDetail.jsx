@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "./Layout";
 import Modal from "./components/Modal";
-import { apiGet, apiPost } from "./utils/api";
+import { apiDelete, apiGet, apiPost } from "./utils/api";
 
 function ProductDetail() {
   const { id } = useParams();
@@ -203,6 +203,26 @@ function ProductDetail() {
     }));
   };
 
+  const handleDeleteProduct = async () => {
+    const confirmed = window.confirm(
+      `Supprimer le produit "${produit?.nom}" ?\n\nCette action est irréversible et supprimera aussi ses variantes.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const response = await apiDelete(`/produits/${id}`);
+      if (response.ok) {
+        window.alert(response.message || "Produit supprimé avec succès.");
+        navigate("/inventory");
+      } else {
+        window.alert(response.message || "Erreur lors de la suppression du produit.");
+      }
+    } catch {
+      window.alert("Erreur réseau lors de la suppression du produit.");
+    }
+  };
+
   if (loading) {
     return (
       <Layout title="Loading...">
@@ -246,6 +266,12 @@ function ProductDetail() {
             onClick={openEditModal}
           >
             Edit Product
+          </button>
+          <button
+            style={styles.dangerButton}
+            onClick={handleDeleteProduct}
+          >
+            Delete Product
           </button>
           <button 
             style={styles.primaryButton}
@@ -613,6 +639,16 @@ const styles = {
     border: "1px solid #e2e8f0",
     borderRadius: "8px",
     fontWeight: "600",
+    cursor: "pointer",
+    fontSize: "14px",
+  },
+  dangerButton: {
+    padding: "10px 16px",
+    backgroundColor: "#fee2e2",
+    color: "#991b1b",
+    border: "1px solid #fecaca",
+    borderRadius: "8px",
+    fontWeight: "700",
     cursor: "pointer",
     fontSize: "14px",
   },

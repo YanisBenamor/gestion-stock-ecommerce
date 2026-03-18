@@ -6,6 +6,7 @@ use App\Models\Produit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\QueryException;
 
 class ProduitController extends Controller
 {
@@ -100,10 +101,35 @@ class ProduitController extends Controller
      */
     public function destroy($id)
     {
-        $produit = Produit::findOrFail($id);
-        $produit->delete();
-        
-        return response()->json(['message' => 'Produit supprimé avec succès']);
+        $produit = Produit::with('variantes')->findOrFail($id);
+
+        try {
+            DB::transaction(function () use ($produit) {
+                // Supprime l'image si elle est stockée localement
+                $oldPath = $this->extractStoragePath($produit->image_url);
+                if ($oldPath) {
+                    Storage::disk('public')->delete($oldPath);
+                }
+
+                // Les variantes et mouvements liés sont supprimés via cascadeOnDelete
+                $produit->delete();
+            });
+
+            return response()->json([
+                'message' => 'Produit supprimé avec succès',
+                'deleted_product_id' => $id,
+            ]);
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'Suppression impossible: ce produit est encore référencé.',
+                'error' => $e->getMessage(),
+            ], 409);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de la suppression du produit.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**

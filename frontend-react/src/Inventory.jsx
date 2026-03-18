@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "./Layout";
 import Modal from "./components/Modal";
-import { apiGet, apiPost, useFetchData } from "./utils/api";
+import { apiDelete, apiGet, apiPost, useFetchData } from "./utils/api";
 import { ProductCardSkeleton } from "./components/SkeletonLoader";
 
 function Inventory() {
@@ -85,6 +85,29 @@ function Inventory() {
       window.alert("Erreur réseau.");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleDeleteProduct = async (e, productId, productName) => {
+    e.stopPropagation();
+
+    const confirmed = window.confirm(
+      `Supprimer le produit "${productName}" ?\n\nCette action est irréversible et supprimera aussi ses variantes.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const response = await apiDelete(`/produits/${productId}`);
+
+      if (response.ok) {
+        window.alert(response.message || "Produit supprimé avec succès.");
+        mutateProduits();
+      } else {
+        window.alert(response.message || "Erreur lors de la suppression du produit.");
+      }
+    } catch {
+      window.alert("Erreur réseau lors de la suppression du produit.");
     }
   };
 
@@ -292,6 +315,12 @@ function Inventory() {
                     >
                       View Details
                     </button>
+                    <button
+                      style={styles.deleteButton}
+                      onClick={(e) => handleDeleteProduct(e, produit.id, produit.nom)}
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               );
@@ -429,6 +458,16 @@ const styles = {
     border: "1px solid #e2e8f0",
     borderRadius: "6px",
     fontWeight: "600",
+    cursor: "pointer",
+    fontSize: "13px",
+  },
+  deleteButton: {
+    padding: "8px 12px",
+    backgroundColor: "#fee2e2",
+    color: "#991b1b",
+    border: "1px solid #fecaca",
+    borderRadius: "6px",
+    fontWeight: "700",
     cursor: "pointer",
     fontSize: "13px",
   },

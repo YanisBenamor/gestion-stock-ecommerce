@@ -5,6 +5,7 @@
 import useSWR from 'swr';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+const API_TIMEOUT_MS = 300000;
 
 export const getAuthToken = () => {
   return localStorage.getItem("auth_token");
@@ -21,6 +22,8 @@ export const clearAuthToken = () => {
 export const fetchWithAuth = async (endpoint, options = {}) => {
   const token = getAuthToken();
   const isFormData = options.body instanceof FormData;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
   const headers = {
     Accept: "application/json",
     ...options.headers,
@@ -34,12 +37,22 @@ export const fetchWithAuth = async (endpoint, options = {}) => {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+      signal: options.signal || controller.signal,
+    });
 
-  return response;
+    return response;
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(`Request timeout after ${API_TIMEOUT_MS / 1000}s`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 };
 
 export const apiGet = async (endpoint) => {
@@ -70,6 +83,25 @@ export const apiPut = async (endpoint, data) => {
   });
 
   const payload = await response.json();
+  if (payload && typeof payload === "object") {
+    return { ...payload, status: response.status, ok: response.ok };
+  }
+
+  return { data: payload, status: response.status, ok: response.ok };
+};
+
+export const apiDelete = async (endpoint) => {
+  const response = await fetchWithAuth(endpoint, {
+    method: "DELETE",
+  });
+
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
   if (payload && typeof payload === "object") {
     return { ...payload, status: response.status, ok: response.ok };
   }

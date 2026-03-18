@@ -20,12 +20,19 @@ class AIController extends Controller
     {
         // Global try/catch pour capturer TOUTES les erreurs
         try {
-            // Validation
+            // Validation (compatibilité: payload {question} ou {message})
             $validated = $request->validate([
-                'question' => 'required|string|max:500',
+                'question' => 'nullable|string|max:500',
+                'message' => 'nullable|string|max:500',
             ]);
 
-            $question = $validated['question'];
+            $question = trim((string) ($validated['question'] ?? $validated['message'] ?? ''));
+            if ($question === '') {
+                return response()->json([
+                    'error' => 'Validation error',
+                    'message' => 'Le champ question (ou message) est requis.',
+                ], 422);
+            }
             $user = $request->user();
 
             \Log::info('AI Chat - Requête reçue', ['question' => $question]);
@@ -151,7 +158,11 @@ class AIController extends Controller
         try {
             return $this->generateOllamaResponse($question, $context);
         } catch (\Exception $e) {
-            \Log::warning('AI Chat - Ollama échoue, essai Groq', ['error' => $e->getMessage()]);
+            \Log::error('AI Chat - Ollama échoue, passage au fallback', [
+                'error' => $e->getMessage(),
+                'exception' => class_basename($e),
+                'question_preview' => mb_substr($question, 0, 120),
+            ]);
             // Continuer vers Groq
         }
 
@@ -185,8 +196,7 @@ class AIController extends Controller
     /**
      * Utiliser Ollama (LLM local) pour une réponse intelligente
      * L'infrastructure est 100% autonome et ne dépend d'aucune clé API externe
-     * 
-     * @param string $question
+     * * @param string $question
      * @param array $context
      * @return array
      * @throws \Exception
@@ -194,29 +204,48 @@ class AIController extends Controller
     private function generateOllamaResponse(string $question, array $context): array
     {
         $ollamaUrl = env('OLLAMA_URL', 'http://ollama:11434');
-        $model = env('OLLAMA_MODEL', 'phi3');
+        $model = env('OLLAMA_MODEL', 'llama3.2:1b');
 
         if (empty($ollamaUrl)) {
             throw new \Exception('OLLAMA_URL is not configured');
         }
 
+        // Supporte OLLAMA_URL avec ou sans /api/generate
+        $endpoint = rtrim($ollamaUrl, '/');
+        if (!str_ends_with($endpoint, '/api/generate')) {
+            $endpoint .= '/api/generate';
+        }
+
         // Construire le prompt système avec contexte
         $systemPrompt = $this->buildSystemPrompt($context);
+        $userMessage = $question;
+        $statusCode = null;
+        $responseBody = null;
 
         try {
             \Log::info('AI Chat - Ollama request', [
-                'ollama_url' => $ollamaUrl,
+                'ollama_url' => $endpoint,
                 'model' => $model,
+                'question_preview' => mb_substr($userMessage, 0, 120),
             ]);
 
-            // Appel à l'API Ollama locale
-            // Format: POST http://ollama:11434/api/generate ou /api/chat
-            $response = Http::timeout(30)->post("{$ollamaUrl}/api/generate", [
-                'model' => $model,
-                'prompt' => "System:\n{$systemPrompt}\n\nUser:\n{$question}",
+            // --- CORRECTION MAJEURE ICI ---
+            // On force les options au niveau de cURL pour garantir 5 minutes d'attente (300 secondes)
+            $response = Http::withOptions([
+                'timeout' => 300,
+                'connect_timeout' => 30,
+            ])->post($endpoint, [
+                'model' => $model ?: 'llama3.2:1b',
+                'prompt' => "System:\n{$systemPrompt}\n\nUser:\n{$userMessage}",
                 'stream' => false,
                 'temperature' => 0.7,
+                'options' => [
+                    'num_predict' => 250,
+                ],
             ]);
+
+            $statusCode = $response->status();
+            $responseBody = $response->body();
 
             if ($response->successful()) {
                 $responseData = $response->json();
@@ -242,11 +271,10 @@ class AIController extends Controller
             }
 
             // Si Ollama retourne une erreur HTTP
-            $statusCode = $response->status();
             $errorMsg = $response->json('error', 'Unknown Ollama error');
             \Log::error('Ollama API error - HTTP ' . $statusCode, [
                 'error_message' => $errorMsg,
-                'response_body' => $response->body(),
+                'response_body' => $responseBody,
             ]);
             throw new \Exception("Ollama API error (HTTP {$statusCode}): {$errorMsg}");
 
@@ -258,7 +286,6 @@ class AIController extends Controller
             throw $e;
         }
     }
-
     /**
     private function generateGroqResponse(string $question, array $context): array
     {
@@ -464,6 +491,8 @@ Tu dois :
 3. Utiliser les données fournies pour justifier tes réponses
 4. Être concis et actionnable
 5. Proposer des commandes si nécessaire
+6. Si l'utilisateur demande un réassort (restock) ou de commander, identifie les produits en alerte dans le contexte et confirme que tu as préparé un brouillon de bon de commande pour le fournisseur avec les quantités manquantes nécessaires pour atteindre les seuils.
+7. Si l'utilisateur demande une action technique que tu ne peux pas exécuter directement, rassure-le et donne une marche à suivre claire dans l'interface du Dashboard.
 
 **IMPORTANT - Instructions sur les images:**
 Quand tu mentionnes un produit, tu DOIS TOUJOURS ecrire explicitement son nom en gras dans le texte, suivi immediatement de son image en Markdown sur une nouvelle ligne (ou a cote).
