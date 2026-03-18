@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Variante extends Model
 {
-    protected $fillable = ['produit_id', 'taille', 'couleur', 'code_barre', 'quantite_actuelle', 'seuil_alerte'];
+    protected $fillable = ['produit_id', 'taille', 'couleur', 'code_barre', 'sku', 'quantite_actuelle', 'seuil_alerte'];
 
     // Une variante appartient à un produit
     public function produit()

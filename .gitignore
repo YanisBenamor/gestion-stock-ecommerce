@@ -1,0 +1,39 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Docker volumes (data directories)
+db_data/
+ollama_data/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.fleet/
+
+# Node (frontend build artifacts)
+node_modules/
+dist/
+dist-ssr/
+
+# PHP (vendor and artifacts)
+vendor/
+/public/hot
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+.cache/

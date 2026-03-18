@@ -10,7 +10,7 @@ class MouvementStock extends Model
     use HasFactory;
 
     // On indique le nom de la table car Laravel pourrait chercher "mouvement_stocks"
-    protected $table = 'mouvements_stock';
+    protected $table = 'mouvement_stocks';
 
     // On autorise le remplissage de ces colonnes
     protected $fillable = [

@@ -16,6 +16,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Appeler le UserSeeder pour créer les utilisateurs de test
+        $this->call(UserSeeder::class);
+
         // 1. Créer un compte Admin pour pouvoir se connecter plus tard
         User::create([
             'name' => 'Admin E-commerce',

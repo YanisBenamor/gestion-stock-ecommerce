@@ -1,0 +1,76 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: stockflow-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-gestion_stock_db}
+      MYSQL_USER: ${DB_USERNAME:-stockflow}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-stockflow_pass}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_pass}
+      TZ: ${TZ:-Europe/Paris}
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${DB_USERNAME:-stockflow}", "-p${DB_PASSWORD:-stockflow_pass}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend-api
+      dockerfile: Dockerfile
+    container_name: stockflow-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./backend-api/.env
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: http://localhost:8000
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-gestion_stock_db}
+      DB_USERNAME: ${DB_USERNAME:-stockflow}
+      DB_PASSWORD: ${DB_PASSWORD:-stockflow_pass}
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-phi3}
+      TZ: ${TZ:-Europe/Paris}
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend_public_uploads:/var/www/html/storage/app/public
+
+  frontend:
+    build:
+      context: ./frontend-react
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    container_name: stockflow-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: stockflow-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  db_data:
+  backend_public_uploads:
+  ollama_data:

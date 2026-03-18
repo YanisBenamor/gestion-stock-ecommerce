@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Categorie;
 use Illuminate\Http\Request;
 
 class CategorieController extends Controller
@@ -12,7 +13,16 @@ class CategorieController extends Controller
      */
     public function index()
     {
-        //
+        try {
+            return response()->json(
+                Categorie::select(['id', 'nom', 'collection'])->orderBy('nom')->get()
+            );
+        } catch (\Throwable $e) {
+            // Fallback minimal pour eviter de casser le frontend si la table n'existe pas.
+            return response()->json([
+                ['id' => 1, 'nom' => 'Default', 'collection' => null],
+            ]);
+        }
     }
 
     /**

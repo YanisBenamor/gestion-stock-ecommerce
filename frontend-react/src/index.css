@@ -9,3 +9,13 @@ body {
   font-family: Arial, sans-serif;
   background: #f5f7fb;
 }
+
+/* Skeleton Loading Animation */
+@keyframes skeleton-loading {
+  0% {
+    background-color: #e2e8f0;
+  }
+  100% {
+    background-color: #f1f5f9;
+  }
+}
